@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+  <title>Remote Tasks</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brand">
+      <div class="logo"><span>RT</span><i class="pulse"></i></div>
+      <div class="brand-text">
+        <strong>Remote Tasks</strong>
+        <small id="host-line">loading…</small>
+      </div>
+    </div>
+
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="overview">
+        <svg viewBox="0 0 24 24"><path d="M3 13h4l3-8 4 14 3-6h4"/></svg>
+        <span>Overview</span>
+      </button>
+      <button class="tab-btn" data-tab="processes">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="18" height="4" rx="1"/></svg>
+        <span>Processes</span>
+        <b class="badge" id="badge-procs">0</b>
+      </button>
+      <button class="tab-btn" data-tab="remotes">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="4" cy="5" r="2"/><circle cx="20" cy="5" r="2"/><circle cx="4" cy="19" r="2"/><circle cx="20" cy="19" r="2"/><path d="M6 6.5l3.8 3.6M18 6.5l-3.8 3.6M6 17.5l3.8-3.6M18 17.5l-3.8-3.6"/></svg>
+        <span>Remotes</span>
+        <b class="badge" id="badge-ports">0</b>
+      </button>
+      <button class="tab-btn" data-tab="logs">
+        <svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 10h7M9 14h7M9 18h4"/></svg>
+        <span>Logs</span>
+        <b class="badge" id="badge-logs" title="Errors in the last 5 minutes">0</b>
+      </button>
+    </nav>
+
+    <div class="rail-gauges">
+      <div class="mini-gauge"><canvas id="rail-cpu" width="56" height="56"></canvas><span>CPU</span></div>
+      <div class="mini-gauge"><canvas id="rail-mem" width="56" height="56"></canvas><span>MEM</span></div>
+    </div>
+
+    <div class="rail-foot">
+      <button id="pause-btn" class="ghost-btn" title="Freeze updates (Space)">
+        <svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+        <span>Pause</span>
+      </button>
+      <label class="rate">
+        Refresh
+        <select id="rate">
+          <option value="1000">1s</option>
+          <option value="1500" selected>1.5s</option>
+          <option value="3000">3s</option>
+          <option value="5000">5s</option>
+        </select>
+      </label>
+      <div class="uptime" id="uptime">up —</div>
+    </div>
+  </aside>
+
+  <main>
+    <!-- OVERVIEW -->
+    <section class="tab-panel active" id="tab-overview">
+      <header class="panel-head">
+        <div>
+          <h1>Overview</h1>
+          <p class="sub" id="cpu-line">—</p>
+        </div>
+        <div class="head-chips" id="loadavg"></div>
+      </header>
+
+      <div class="stat-row">
+        <div class="stat-card" data-accent="cpu">
+          <canvas class="ring" id="ring-cpu" width="96" height="96"></canvas>
+          <div class="stat-body">
+            <span class="label">CPU</span>
+            <span class="value" id="v-cpu">0%</span>
+            <span class="hint" id="h-cpu">—</span>
+          </div>
+          <canvas class="spark" id="spark-cpu"></canvas>
+        </div>
+        <div class="stat-card" data-accent="mem">
+          <canvas class="ring" id="ring-mem" width="96" height="96"></canvas>
+          <div class="stat-body">
+            <span class="label">Memory</span>
+            <span class="value" id="v-mem">0%</span>
+            <span class="hint" id="h-mem">—</span>
+          </div>
+          <canvas class="spark" id="spark-mem"></canvas>
+        </div>
+        <div class="stat-card" data-accent="net">
+          <div class="stat-body">
+            <span class="label">Network</span>
+            <span class="value"><em class="down">↓</em><span id="v-rx">0</span></span>
+            <span class="hint"><em class="up">↑</em><span id="v-tx">0</span></span>
+          </div>
+          <canvas class="spark" id="spark-net"></canvas>
+        </div>
+        <div class="stat-card" data-accent="disk">
+          <div class="stat-body">
+            <span class="label">Disk I/O</span>
+            <span class="value"><em class="read">R</em><span id="v-dr">0</span></span>
+            <span class="hint"><em class="write">W</em><span id="v-dw">0</span></span>
+          </div>
+          <canvas class="spark" id="spark-disk"></canvas>
+        </div>
+      </div>
+
+      <div class="grid-main">
+        <div class="card span-2">
+          <div class="card-head">
+            <h2>CPU &amp; memory history</h2>
+            <div class="legend"><i class="sw cpu"></i>CPU <i class="sw mem"></i>Memory <i class="sw sys"></i>Kernel</div>
+          </div>
+          <canvas class="chart" id="chart-history"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Cores</h2>
+            <span class="muted" id="core-temp"></span>
+          </div>
+          <div class="cores" id="cores"></div>
+        </div>
+
+        <div class="card span-2">
+          <div class="card-head">
+            <h2>Memory hogs</h2>
+            <span class="muted">Grouped by name · click to filter</span>
+          </div>
+          <div class="treemap" id="treemap"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Memory</h2></div>
+          <div class="mem-stack" id="mem-stack"></div>
+          <div class="mem-legend" id="mem-legend"></div>
+          <div class="card-head tight"><h2>Process states</h2></div>
+          <canvas class="donut" id="donut-states"></canvas>
+        </div>
+
+        <div class="card span-2">
+          <div class="card-head">
+            <h2>Network traffic</h2>
+            <div class="legend"><i class="sw net"></i>Download <i class="sw up"></i>Upload</div>
+          </div>
+          <canvas class="chart" id="chart-net"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Top CPU right now</h2>
+          </div>
+          <ol class="top-list" id="top-cpu"></ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROCESSES -->
+    <section class="tab-panel" id="tab-processes">
+      <header class="panel-head">
+        <div>
+          <h1>Processes</h1>
+          <p class="sub" id="proc-count">—</p>
+        </div>
+        <div class="search">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          <input id="proc-search" type="search" placeholder="Search name, PID, user, command…  ( / )" autocomplete="off" spellcheck="false">
+        </div>
+      </header>
+
+      <div class="filters">
+        <div class="chip-group" id="proc-scope">
+          <button class="chip active" data-scope="all">Everyone</button>
+          <button class="chip" data-scope="mine">Mine</button>
+          <button class="chip" data-scope="root">Root</button>
+        </div>
+        <div class="chip-group" id="proc-state">
+          <button class="chip active" data-state="any">Any state</button>
+          <button class="chip" data-state="running">Running</button>
+          <button class="chip" data-state="sleeping">Sleeping</button>
+          <button class="chip" data-state="blocked">Blocked</button>
+          <button class="chip" data-state="stopped">Stopped</button>
+        </div>
+        <label class="toggle"><input type="checkbox" id="hide-kernel" checked><span></span>Hide kernel threads</label>
+        <label class="slider">CPU ≥ <input type="range" id="cpu-min" min="0" max="50" step="0.5" value="0"><b id="cpu-min-v">0%</b></label>
+        <button class="chip clear" id="proc-clear" hidden>Clear filters ✕</button>
+      </div>
+
+      <div class="proc-layout">
+        <div class="table-wrap">
+          <table class="grid" id="proc-table">
+            <thead>
+              <tr>
+                <th data-sort="name">Name</th>
+                <th data-sort="pid" class="num">PID</th>
+                <th data-sort="user">User</th>
+                <th data-sort="state">State</th>
+                <th data-sort="cpu" class="num sorted desc" title="Share of total CPU across all cores">CPU</th>
+                <th class="spark-col">Trend</th>
+                <th data-sort="rss" class="num">Memory</th>
+                <th data-sort="started">Started</th>
+                <th data-sort="command">Command</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div class="empty" id="proc-empty" hidden>No processes match those filters.</div>
+        </div>
+        <aside class="detail" id="proc-detail" hidden></aside>
+      </div>
+    </section>
+
+    <!-- REMOTES -->
+    <section class="tab-panel" id="tab-remotes">
+      <header class="panel-head">
+        <div>
+          <h1>Remotes</h1>
+          <p class="sub">Open ports and live connections, by process</p>
+        </div>
+        <div class="search">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          <input id="net-search" type="search" placeholder="Search port, address, process, PID…  ( / )" autocomplete="off" spellcheck="false">
+        </div>
+      </header>
+
+      <div class="stat-row compact">
+        <div class="stat-card" data-accent="net"><div class="stat-body"><span class="label">Listening</span><span class="value" id="n-listen">0</span><span class="hint">open ports</span></div></div>
+        <div class="stat-card" data-accent="cpu"><div class="stat-body"><span class="label">Established</span><span class="value" id="n-est">0</span><span class="hint">active connections</span></div></div>
+        <div class="stat-card" data-accent="mem"><div class="stat-body"><span class="label">Remote hosts</span><span class="value" id="n-hosts">0</span><span class="hint">unique peers</span></div></div>
+        <div class="stat-card" data-accent="disk"><div class="stat-body"><span class="label">Processes</span><span class="value" id="n-procs">0</span><span class="hint" id="n-hidden">with sockets</span></div></div>
+      </div>
+
+      <div class="remotes-layout">
+        <div class="card constellation-card">
+          <div class="card-head">
+            <h2>Constellation</h2>
+            <div class="legend"><i class="sw net"></i>Listening <i class="sw cpu"></i>Established <i class="sw mem"></i>Remote host</div>
+          </div>
+          <canvas id="constellation"></canvas>
+        </div>
+
+        <div class="card net-table-card">
+          <div class="filters inside">
+            <div class="chip-group" id="net-state">
+              <button class="chip active" data-nstate="listen">Listening</button>
+              <button class="chip" data-nstate="established">Established</button>
+              <button class="chip" data-nstate="all">All</button>
+            </div>
+            <div class="chip-group" id="net-proto">
+              <button class="chip active" data-proto="any">TCP+UDP</button>
+              <button class="chip" data-proto="tcp">TCP</button>
+              <button class="chip" data-proto="udp">UDP</button>
+            </div>
+            <label class="toggle"><input type="checkbox" id="hide-loopback"><span></span>Hide loopback</label>
+          </div>
+          <div class="table-wrap">
+            <table class="grid" id="net-table">
+              <thead>
+                <tr>
+                  <th data-nsort="protocol">Proto</th>
+                  <th data-nsort="localPort" class="num sorted asc">Port</th>
+                  <th data-nsort="localAddress">Local address</th>
+                  <th data-nsort="peer">Remote</th>
+                  <th data-nsort="state">State</th>
+                  <th data-nsort="process">Process</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <div class="empty" id="net-empty" hidden>No sockets match those filters.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- LOGS -->
+    <section class="tab-panel" id="tab-logs">
+      <header class="panel-head">
+        <div>
+          <h1>Logs</h1>
+          <p class="sub" id="log-sub">Connecting to the system journal…</p>
+        </div>
+        <div class="search">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          <input id="log-search" type="search" placeholder="Filter live logs…  -word excludes · Enter searches full journal" autocomplete="off" spellcheck="false">
+        </div>
+      </header>
+
+      <div class="log-top">
+        <div class="card">
+          <div class="card-head">
+            <h2>Activity · last 2 minutes</h2>
+            <div class="legend"><i class="sw err"></i>Error <i class="sw warn"></i>Warning <i class="sw notice"></i>Notice <i class="sw info"></i>Info <i class="sw debug"></i>Debug</div>
+          </div>
+          <canvas class="log-rate" id="log-rate"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Busiest sources</h2>
+            <span class="muted">last 10 min · click to filter</span>
+          </div>
+          <div class="src-list" id="log-src-list"></div>
+        </div>
+      </div>
+
+      <div class="filters">
+        <div class="chip-group" id="log-level">
+          <button class="chip" data-level="3">Errors</button>
+          <button class="chip" data-level="4">Warnings+</button>
+          <button class="chip" data-level="5">Notice+</button>
+          <button class="chip" data-level="6">Info+</button>
+          <button class="chip active" data-level="7">Everything</button>
+        </div>
+        <select id="log-source" class="select"><option value="">All sources</option></select>
+        <label class="toggle"><input type="checkbox" id="log-follow" checked><span></span>Follow</label>
+        <button class="ghost-btn small" id="log-deep" title="Search the whole journal, not just what is loaded (Enter)">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4M8 11h6"/></svg>Search full journal
+        </button>
+        <button class="ghost-btn small" id="log-clear" title="Clear the live view">Clear</button>
+        <button class="chip clear" id="log-reset" hidden>Clear filters ✕</button>
+      </div>
+
+      <div class="banner" id="log-banner" hidden></div>
+
+      <div class="log-layout">
+        <div class="log-main">
+          <div class="log-head">
+            <span>Time</span><span>Level</span><span>Source</span><span class="num">PID</span><span>Message</span>
+          </div>
+          <div class="log-scroll" id="log-scroll">
+            <div class="log-spacer" id="log-spacer"></div>
+            <div class="log-rows" id="log-rows"></div>
+          </div>
+          <div class="empty" id="log-empty" hidden>No log lines match.</div>
+          <button class="jump" id="log-jump" hidden></button>
+        </div>
+        <aside class="detail" id="log-detail" hidden></aside>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="ctx" id="ctx" hidden></div>
+<div class="modal-backdrop" id="modal" hidden>
+  <div class="modal">
+    <h3 id="modal-title"></h3>
+    <p id="modal-body"></p>
+    <div class="modal-actions">
+      <button class="ghost-btn" id="modal-cancel">Cancel</button>
+      <button class="danger-btn" id="modal-ok">Kill</button>
+    </div>
+  </div>
+</div>
+<div class="toasts" id="toasts"></div>
+
+<script src="charts.js"></script>
+<script src="app.js"></script>
+<script src="logs.js"></script>
+</body>
+</html>

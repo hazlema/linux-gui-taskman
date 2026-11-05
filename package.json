@@ -1,0 +1,48 @@
+{
+  "name": "remote-tasks",
+  "version": "0.1.0",
+  "description": "A fun, visual task manager with process and port views",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --linux AppImage"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "systeminformation": "^5.33.19"
+  },
+  "devDependencies": {
+    "electron": "^38.8.6",
+    "electron-builder": "^26.18.0"
+  },
+  "productName": "Remote Tasks",
+  "author": "hazlema",
+  "build": {
+    "appId": "com.hazlema.remotetasks",
+    "productName": "Remote Tasks",
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "assets/icon.png",
+      "category": "System",
+      "synopsis": "A visual task manager with process and port views",
+      "artifactName": "Remote-Tasks-${version}-${arch}.AppImage",
+      "syncDesktopName": true
+    }
+  },
+  "desktopName": "remote-tasks.desktop",
+  "homepage": "https://github.com/hazlema/linux-gui-taskman",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hazlema/linux-gui-taskman.git"
+  }
+}
